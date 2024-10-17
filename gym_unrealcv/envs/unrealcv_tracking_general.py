@@ -185,8 +185,7 @@ class UnrealCvTracking_general(gym.Env):
             self.launched = self.launch_ue_env()
             self.init_agents()
             self.init_objects()
-        self.unrealcv.set_max_speed(self.player_list[self.tracker_id], 0)
-        self.unrealcv.set_max_speed(self.player_list[self.target_id], 0)
+
         self.count_close = 0
         self.count_steps = 0
         self.count_eps += 1

@@ -56,7 +56,6 @@ class RunUnreal():
 
             self.env = subprocess.Popen(cmd_exe, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                         stderr=subprocess.DEVNULL, start_new_session=True, env=display)
-
             atexit.register(self.close)
             # signal.signal(signal.SIGTERM, self.signal_handler)
             # signal.signal(signal.SIGINT, self.signal_handler)

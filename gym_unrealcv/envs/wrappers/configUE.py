@@ -23,4 +23,3 @@ class ConfigUEWrapper(Wrapper):
     def reset(self, **kwargs):
         states = self.env.reset(**kwargs)
         return states
-

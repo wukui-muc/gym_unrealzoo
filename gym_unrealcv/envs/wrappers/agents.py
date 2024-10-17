@@ -29,7 +29,6 @@ class NavAgents(Wrapper):
             elif mode == 1:
                 goal = self.agents[idx].act(env.obj_poses[idx])
                 if goal is not None:
-                    env.unwrapped.unrealcv.set_max_speed(env.player_list[idx], 60)
                     # env.unwrapped.unrealcv.nav_to_goal(env.player_list[idx], goal)
                     env.unwrapped.unrealcv.nav_to_goal_bypath(env.player_list[idx], goal)
                     # while env.unrealcv.get_obj_speed(env.player_list[idx])<1:

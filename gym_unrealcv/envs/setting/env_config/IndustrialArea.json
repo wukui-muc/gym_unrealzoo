@@ -1,6 +1,6 @@
 {
     "env_name": "IndustrialArea",
-    "env_bin": "Collection_LinuxNoEditor/Collection/Binaries/Linux/Collection",
+    "env_bin": "/media/wuk/PS2000/Collection_Linux/Collection_Linux/LinuxNoEditor/Collection/Binaries/Linux/Collection",
     "env_map": "IndustrialArea",
     "env_bin_win": "E:\\gym_unrealcv2.0\\gym-unrealcv\\gym_unrealcv\\envs\\UnrealEnv\\Collection_WinNoEditor\\WindowsNoEditor\\Collection\\Binaries\\Win64\\Collection.exe",
     "third_cam": {

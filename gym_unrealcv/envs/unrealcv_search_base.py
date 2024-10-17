@@ -7,7 +7,6 @@ from gym_unrealcv.envs.navigation.visualization import show_info
 from gym_unrealcv.envs.utils import env_unreal, misc
 from gym_unrealcv.envs.navigation.interaction import Navigation
 from gym_unrealcv.envs.agent.character import Character_API
-from gym_unrealcv.envs.base_env import UnrealCv_base
 
 '''
 It is a general env for searching target object.
@@ -32,6 +31,7 @@ class UnrealCvSearch_base(gym.Env):
                  reward_type='bbox',  # distance, bbox, bbox_distance,
                  docker=False,
                  resolution=(160, 160),
+
                  ):
 
         setting = misc.load_env_setting(setting_file)
@@ -49,22 +49,22 @@ class UnrealCvSearch_base(gym.Env):
 
         # start unreal env
         self.unreal = env_unreal.RunUnreal(ENV_BIN=setting['env_bin'])
-        env_ip, env_port = self.unreal.start(docker, resolution, offscreen=False)
+        env_ip, env_port = self.unreal.start(docker, resolution, offscreen=True)
 
 
         # connect UnrealCV
-        # self.unrealcv = Navigation(
-        #                         # cam_id=self.cam_id,
-        #                            port=env_port,
-        #                            ip=env_ip,
-        #                            # targets=self.target_list,
-        #                            # env=self.unreal.path2env,
-        #                            resolution=resolution)
+        self.unrealcv = Navigation(
+                                # cam_id=self.cam_id,
+                                   port=env_port,
+                                   ip=env_ip,
+                                   # targets=self.target_list,
+                                   # env=self.unreal.path2env,
+                                   resolution=resolution)
         # self.unrealcv = Character_API(port=env_port, ip=env_ip, resolution=resolution, comm_mode='tcp')
         # self.unrealcv.set_cam_illumination(0,'None')
         # self.unrealcv.set_cam_reflection(0,'None')
 
-        # self.unrealcv.pitch = self.pitch
+        self.unrealcv.pitch = self.pitch
 
         #  define action
         self.action_type = action_type
@@ -78,7 +78,7 @@ class UnrealCvSearch_base(gym.Env):
         # define observation space,
         # color, depth, rgbd,...
         self.observation_type = observation_type
-        assert self.observation_type == 'Color' or self.observation_type == 'Depth' or self.observation_type == 'Rgbd' or self.observation_type == 'Mask' or self.observation_type == 'ColorMask'
+        assert self.observation_type == 'Color' or self.observation_type == 'Depth' or self.observation_type == 'Rgbd' or self.observation_type == 'Mask'
         self.observation_space = self.unrealcv.define_observation(self.cam_id, self.observation_type, 'direct')
 
         # define reward type
@@ -119,6 +119,7 @@ class UnrealCvSearch_base(gym.Env):
             Waypoints=self.reset_module.waypoints,
             Color=None,
             Depth=None,
+            Success=False
         )
         if action is not None:
             action = np.squeeze(action)
@@ -192,6 +193,7 @@ class UnrealCvSearch_base(gym.Env):
             if self.reset_type == 'waypoint':
                 self.reset_module.update_dis2collision(info['Pose'])
         if distance<300 and np.fabs(info['Direction'])<10 :
+            info['Success']=True
             info['Done'] = True
             info['Reward'] = 100
         # update observation
@@ -210,6 +212,7 @@ class UnrealCvSearch_base(gym.Env):
     def reset(self, ):
         # double check the resetpoint, it is necessary for random reset type
         self.unrealcv.set_obj_color(self.target_list[0], (255, 255, 255))
+
         collision = True
         while collision:
             current_pose = self.reset_module.select_resetpoint()

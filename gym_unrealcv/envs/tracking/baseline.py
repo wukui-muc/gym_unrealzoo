@@ -1,4 +1,6 @@
 import random
+import time
+
 import gym
 from gym_unrealcv.envs.utils import misc
 import numpy as np
@@ -223,7 +225,7 @@ class GoalNavAgentTest(object):
         return distance < 50
 
 class InternalNavAgent(object):
-    def __init__(self, env,goal_list=None, goal_area=None, max_len=100):
+    def __init__(self, env,goal_list=None, goal_area=None, max_len=300):
         self.step_counter = 0
         self.keep_steps = 0
         self.goal_area = goal_area
@@ -279,7 +281,7 @@ class InternalNavAgent(object):
         #     z = np.random.randint(goal_area[4], goal_area[5])
         #     goal = np.array([x, y, z])
 
-        x, y, z = self.env.unwrapped.unrealcv.generate_nav_goal(self.env.unwrapped.player_list[self.env.unwrapped.target_id], 1000,500)
+        x, y, z = self.env.unwrapped.unrealcv.generate_nav_goal(self.env.unwrapped.player_list[self.env.unwrapped.target_id], 1000,300)
         goal = np.array([x, y, z])
         # print('NavMesh Generated goal:', goal)
         return goal
@@ -297,7 +299,7 @@ class Nav2GoalAgent(object):
             self.discrete = True
         else:
             self.discrete = False
-            self.velocity_high = action_space.high[1]
+            self.velocity_high = action_space.high[1]-40
             self.velocity_low = 0
             self.angle_high = action_space.high[0]
             self.angle_low = action_space.low[0]
@@ -376,7 +378,7 @@ class PoseTracker(object):
         self.expected_angle = expected_angle
         from simple_pid import PID
         self.angle_pid = PID(1, 0.01, 0, setpoint=1)
-        self.velocity_pid = PID(5, 0.1, 0.01, setpoint=1)
+        self.velocity_pid = PID(5, 0.01, 0.05, setpoint=1)
 
     def act(self, pose, target_pose):
         delt_yaw = misc.get_direction(pose, target_pose) # get the angle between current pose and goal in x-y plane

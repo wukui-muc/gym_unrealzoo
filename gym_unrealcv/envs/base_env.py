@@ -1,15 +1,10 @@
-import os
-import time
 import warnings
-
 import gym
 import numpy as np
 from gym import spaces
-from gym_unrealcv.envs.utils import env_unreal, misc
+from gym_unrealcv.envs.utils import misc
 from unrealcv.launcher import RunUnreal
 from gym_unrealcv.envs.agent.character import Character_API
-import gym_unrealcv
-import cv2
 import random
 import sys
 ''' 
@@ -87,7 +82,7 @@ class UnrealCv_base(gym.Env):
         # define observation space,
         # color, depth, rgbd,...
         self.observation_type = observation_type
-        assert self.observation_type in ['Color', 'Depth', 'Rgbd', 'Gray', 'CG', 'Mask', 'Pose','MaskDepth']
+        assert self.observation_type in ['Color', 'Depth', 'Rgbd', 'Gray', 'CG', 'Mask', 'Pose','MaskDepth','ColorMask']
         self.observation_space = [self.define_observation_space(self.cam_list[i], self.observation_type, resolution)
                                   for i in range(len(self.player_list))]
 
@@ -124,21 +119,10 @@ class UnrealCv_base(gym.Env):
         self.unrealcv.batch_cmd(move_cmds+head_cmds+anim_cmds, None)
         self.count_steps += 1
 
-        # get states batch
+        # get states
         obj_poses, cam_poses, imgs, masks, depths = self.unrealcv.get_pose_img_batch(self.player_list, self.cam_list, self.cam_flag)
-        # rendering image under loop, low efficiency
-        # imgs=[]
-        # obj_poses=[]
-        # depths=[]
-        # masks=[]
-        # for i, obj in enumerate(self.player_list):
-        #     obj_poses.append(self.unrealcv.get_obj_pose(obj))
-        #     imgs.append(self.unrealcv.get_image(self.cam_list[i], 'lit', show=False))
-
-
         self.obj_poses = obj_poses
         observations = self.prepare_observation(self.observation_type, imgs, masks, depths, obj_poses)
-
         self.img_show = self.prepare_img2show(self.protagonist_id, observations)
 
         pose_obs, relative_pose = self.get_pose_states(obj_poses)
@@ -165,8 +149,10 @@ class UnrealCv_base(gym.Env):
         for i, obj in enumerate(self.player_list):
             if self.agents[obj]['agent_type'] in self.agents_category:
                 if not self.agents[obj]['internal_nav']:
-                    self.unrealcv.set_move_bp(obj, [0, 0])
-                    self.unrealcv.set_phy(obj, 1)
+                    # self.unrealcv.set_move_bp(obj, [0, 100])
+                    # self.unrealcv.set_max_speed(obj, 100)
+                    continue
+                    # self.unrealcv.set_phy(obj, 1)
             elif self.agents[obj]['agent_type'] == 'drone':
                 self.unrealcv.set_move_bp(obj, [0, 0, 0, 0])
                 self.unrealcv.set_phy(obj, 0)
@@ -239,6 +225,9 @@ class UnrealCv_base(gym.Env):
             return np.array(pose_list)
         elif observation_type == 'MaskDepth':
             return np.append(np.array(mask_list), np.array(depth_list), axis=-1)
+        elif observation_type =='ColorMask':
+            return np.append(np.array(img_list), np.array(mask_list), axis=-1)
+
 
 
     def rotate2exp(self, yaw_exp, obj, th=1):
@@ -288,18 +277,15 @@ class UnrealCv_base(gym.Env):
         self.unrealcv.set_phy(name, 0)
         return new_dict
 
-    def remove_agent(self, name, freeze=False):
+    def remove_agent(self, name):
         # print(f'remove {name}')
         agent_index = self.player_list.index(name)
         self.player_list.remove(name)
         self.cam_list = self.remove_cam(name)
         self.action_space.pop(agent_index)
         self.observation_space.pop(agent_index)
-        if freeze:
-            self.freeze_list.append(name)  # the agent still exists in the scene, but it is frozen
-        else:
-            self.unrealcv.destroy_obj(name)  # the agent is removed from the scene
-            self.agents.pop(name)
+        self.unrealcv.destroy_obj(name)  # the agent is removed from the scene
+        self.agents.pop(name)
 
     def remove_cam(self, name):
         cam_id = self.agents[name]['cam_id']
@@ -350,6 +336,9 @@ class UnrealCv_base(gym.Env):
                 s_high[:, :, -1] = 100.0  # max_depth
                 s_high[:, :, :-1] = 255  # max_rgb
                 observation_space = spaces.Box(low=s_low, high=s_high, dtype=np.float16)
+            elif observation_type=='ColorMask':
+                img_shape = (resolution[1], resolution[0], 6)
+                observation_space = spaces.Box(low=0, high=255, shape=img_shape, dtype=np.uint8)
         return observation_space
 
     def sample_init_pose(self, use_reset_area=False, num_agents=1):
@@ -455,8 +444,10 @@ class UnrealCv_base(gym.Env):
     def prepare_img2show(self, index, states):
         if self.observation_type == 'Rgbd':
             return states[index][:, :, :3]
-        elif self.observation_type in ['Color', 'Depth', 'Gray', 'CG', 'Mask']:
+        elif self.observation_type in ['Color', 'Gray', 'CG', 'Mask']:
             return states[index]
+        elif self.observation_type == 'Depth':
+            return states[index]/states[index].max()  # normalize the depth image
         else:
             return None
 
@@ -475,12 +466,6 @@ class UnrealCv_base(gym.Env):
     def set_agent(self):
         # the agent is controlled by the external controller
         return self.cam_list.index(random.choice([x for x in self.cam_list if x > 0]))
-
-    def check_visibility(self, cam_id):
-        mask = self.unrealcv.read_image(self.cam_id[cam_id], 'object_mask', 'fast')
-        mask, bbox = self.unrealcv.get_bbox(mask, self.player_list[self.target_id], normalize=False)
-        mask_percent = mask.sum()/(self.resolution[0] * self.resolution[1])
-        return mask_percent
 
     def action_mapping(self, actions, player_list):
         actions2move = []
@@ -525,8 +510,8 @@ class UnrealCv_base(gym.Env):
         # observation_type: 'color', 'depth', 'mask', 'cam_pose'
         flag = [False, False, False, False]
         flag[0] = use_cam_pose
-        flag[1] = observation_type == 'Color' or observation_type == 'Rgbd' or use_color
-        flag[2] = observation_type == 'Mask' or use_mask or observation_type == 'MaskDepth'
+        flag[1] = observation_type == 'Color' or observation_type == 'Rgbd' or use_color or observation_type == 'ColorMask'
+        flag[2] = observation_type == 'Mask' or use_mask or observation_type == 'MaskDepth' or observation_type == 'ColorMask'
         flag[3] = observation_type == 'Depth' or observation_type == 'Rgbd' or use_depth or observation_type == 'MaskDepth'
         print('cam_flag:', flag)
         return flag

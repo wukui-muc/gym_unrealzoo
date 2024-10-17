@@ -206,7 +206,7 @@ class Character_API(UnrealCv_API):
                 self.set_texture(obstacle, (1, 1, 1), np.random.uniform(0, 1, 3), img_dir, np.random.randint(1, 4))
             # scale
             # self.set_obj_scale(obstacle, np.random.uniform(0.3, 3, 3))
-            self.set_obj_scale(obstacle, np.random.uniform(2, 6, 3))
+            self.set_obj_scale(obstacle, np.random.uniform(0.5, 4, 3))
 
             # location
             obstacle_loc = [start_area[0], start_area[2], 0]
@@ -226,7 +226,7 @@ class Character_API(UnrealCv_API):
         # spawn, set obj pose, enable physics
         [x, y, z] = loc
         [pitch, yaw, roll] = rot
-        if obj_class_name =="bp_character_C":
+        if obj_class_name =="bp_character_C" or obj_class_name =="target_C":
             cmd = [f'vset /objects/spawn {obj_class_name} {obj_name}',
                    f'vset /object/{obj_name}/location {x} {y} {z}',
                    f'vset /object/{obj_name}/rotation {pitch} {yaw} {roll}',

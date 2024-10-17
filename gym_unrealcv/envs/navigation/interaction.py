@@ -99,10 +99,6 @@ class Navigation(UnrealCv_API):
             state = np.concatenate((self.img_color, self.img_gray), axis=2)
         elif observation_type == 'Pose':
             state = self.get_pose() # fake pose
-        elif observation_type =='ColorMask':
-            self.img_color = self.read_image(cam_id, 'lit', mode)
-            tmp = self.read_image(cam_id, 'object_mask', mode)
-            state = np.concatenate((self.img_color, tmp), axis=2)
         return state
 
     def define_observation(self, cam_id, observation_type, mode='direct'):
@@ -129,8 +125,6 @@ class Navigation(UnrealCv_API):
                     observation_space = spaces.Box(low=s_low, high=s_high, dtype=np.float16)  # for gym>=0.10
                 else:
                     observation_space = spaces.Box(low=s_low, high=s_high)
-            elif observation_type =='ColorMask':
-                observation_space = spaces.Box(low=0, high=255, shape=state.shape, dtype=np.uint8)  # for gym>=0.10
 
         return observation_space
 

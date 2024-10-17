@@ -19,13 +19,12 @@ class Track(UnrealCv_base):
                  task_file=None,  # the file to define the task TODO: use this file to config task specific parameters
                  action_type='Discrete',  # 'discrete', 'continuous'
                  observation_type='Color',  # 'color', 'depth', 'rgbd', 'Gray'
-                 resolution=(160, 160),
+                 resolution=(160, 160)
                  ):
         super(Track, self).__init__(setting_file=env_file,  # the setting file to define the task
                                          action_type=action_type,  # 'discrete', 'continuous'
                                          observation_type=observation_type,  # 'color', 'depth', 'rgbd', 'Gray'
-                                         resolution=resolution,
-                                    )
+                                         resolution=resolution)
         self.count_lost = 0
         self.max_lost_steps = 20
         self.agents_category = ['player']
@@ -34,8 +33,7 @@ class Track(UnrealCv_base):
             "min_distance": 100,
             "max_direction": 60,
             "max_distance": 600,
-            "exp_distance": 300,
-            "exp_angle": 0,
+            "exp_distance": 300
         }
         self.distance_threshold = self.reward_params["min_distance"]  # distance threshold for collision
         self.tracker_id = self.protagonist_id
@@ -54,6 +52,7 @@ class Track(UnrealCv_base):
                 else:
                     self.textures_list[i] = os.path.join(texture_dir, self.textures_list[i])
 
+
     def step(self, action):
         obs, rewards, done, info = super(Track, self).step(action)
         relative_pose = info['Relative_Pose']
@@ -71,31 +70,26 @@ class Track(UnrealCv_base):
         return obs, rewards, done, info
 
     def reset(self):
+        # initialize the environment
         observations = super(Track, self).reset()
 
-        #clear the unfinished navmesh task
+        self.unrealcv.set_max_speed(self.player_list[self.target_id], 50)
         target_pos = self.unrealcv.get_obj_location(self.player_list[self.target_id])
         self.unrealcv.nav_to_goal(self.player_list[self.target_id], target_pos)
-
+        time.sleep(1)
         super(Track, self).random_app()
-        self.unrealcv.set_max_speed(self.player_list[self.target_id], 100)
-        self.unrealcv.set_max_speed(self.player_list[self.tracker_id], 100)
-
-
-        ############ toggle the annotation for customized mask color
-        # object_list = self.unrealcv.get_objects()
-        # for obj in object_list: #binary mask configure
-        #     if obj == self.player_list[self.target_id]:
-        #         self.unrealcv.set_obj_color(obj, (255, 255, 255))
-            # else:
-            #     self.unrealcv.set_obj_color(obj, (0, 0, 0))
-        # self.unrealcv.set_obj_color(self.player_list[self.target_id], (255, 255, 255)) # assign white color for target
-        ##############
-
-        #toggle the annotation for track_train environment augementation
+        # self.unrealcv.set_appearance(self.player_list[self.tracker_id], 21)
         # self.environment_augmentation(player_mesh=True, player_texture=True, light=False, background_texture=False,
         #                                   layout=True, layout_texture=True)
-
+        object_list = self.unrealcv.get_objects()
+        ############
+        for obj in object_list: #binary mask configure
+            if obj == self.player_list[self.target_id]:
+                self.unrealcv.set_obj_color(obj, (255, 255, 255))
+            else:
+                self.unrealcv.set_obj_color(obj, (0, 0, 0))
+        ##############
+        time.sleep(1)
         target_pos = self.unrealcv.get_obj_location(self.player_list[self.target_id])
         # initialize the tracker
         cam_pos_exp, yaw_exp= self.get_tracker_init_point(target_pos, self.reward_params["exp_distance"])
@@ -103,19 +97,6 @@ class Track(UnrealCv_base):
         tracker_name = self.player_list[self.tracker_id]
         self.unrealcv.set_obj_location(tracker_name, cam_pos_exp)
         self.unrealcv.set_obj_rotation(tracker_name, [0, yaw_exp, 0])
-        # reset if cannot see the target at initial frame
-        while self.unwrapped.unrealcv.check_visibility(self.cam_list[self.tracker_id], self.player_list[self.target_id])==0:
-            # target_locations = self.sample_from_area(self.reset_area, 1)
-            target_locations=self.sample_init_pose()
-            self.unrealcv.set_obj_location(self.player_list[self.target_id], target_locations[0])
-            self.unrealcv.set_cam(self.player_list[self.target_id], self.agents[self.player_list[self.target_id]]['relative_location'], self.agents[self.player_list[self.target_id]]['relative_rotation'])
-            target_pos = self.unrealcv.get_obj_location(self.player_list[self.target_id])
-            # initialize the tracker
-            cam_pos_exp, yaw_exp = self.get_tracker_init_point(target_pos, self.reward_params["exp_distance"])
-            # set tracker location
-            tracker_name = self.player_list[self.tracker_id]
-            self.unrealcv.set_obj_location(tracker_name, cam_pos_exp)
-            self.unrealcv.set_obj_rotation(tracker_name, [0, yaw_exp, 0])
         # update the observation
         observations, self.obj_poses, self.img_show = self.update_observation(self.player_list, self.cam_list, self.cam_flag, self.observation_type)
         self.count_lost = 0
@@ -134,19 +115,15 @@ class Track(UnrealCv_base):
         info['dis_ave'] = relative_dis.mean() # average distance among players, regard as a kind of density metric
 
         # if in the tracker's view
-        target_percent= self.unwrapped.unrealcv.check_visibility(self.cam_list[self.tracker_id],self.player_list[self.target_id])
-        info['target_viewed'] = int(target_percent>0)  # target in the observable area
-
         view_mat = np.zeros_like(relative_ori)
         view_mat[np.where(np.fabs(relative_ori) < 45)] = 1
         view_mat[np.where(relative_dis > self.reward_params['max_distance'])] = 0
         view_mat_tracker = view_mat[tracker_id]
         # how many distractors are observed
         info['d_in'] = view_mat_tracker.sum() - view_mat_tracker[target_id] - view_mat_tracker[tracker_id]  # distractor in the observable area
-        # info['target_viewed'] = view_mat_tracker[target_id]  # target in the observable area
+        info['target_viewed'] = view_mat_tracker[target_id]  # target in the observable area
 
-        # relative_oir_norm = np.fabs(relative_ori) / 45.0
-        relative_oir_norm = np.fabs(relative_ori-self.reward_params['exp_angle']) / 45.0
+        relative_oir_norm = np.fabs(relative_ori) / 45.0
         relation_norm = np.fabs(relative_dis - self.reward_params['exp_distance'])/self.reward_params['max_distance'] + relative_oir_norm
         reward_tracker = 1 - relation_norm[0]  # measuring the quality among tracker to others
         info['tracked_id'] = np.argmax(reward_tracker)  # which one is tracked
@@ -199,6 +176,13 @@ class Track(UnrealCv_base):
         yaw = float(direction / np.pi * 180 - 180)
 
         return [cam_pos_exp, yaw]
+
+    def check_visibility(self, cam_id):
+        mask = self.unrealcv.get_image(cam_id, 'object_mask', 'bmp')
+        mask, bbox = self.unrealcv.get_bbox(mask, self.player_list[self.target_id], normalize=False)
+        mask_percent = mask.sum()/(self.resolution[0] * self.resolution[1])
+        return mask_percent
+
     def environment_augmentation(self, player_mesh=False, player_texture=False,
                                  light=False, background_texture=False,
                                  layout=False, layout_texture=False):
@@ -236,4 +220,4 @@ class Track(UnrealCv_base):
         if layout:
             self.unrealcv.clean_obstacles()
             self.unrealcv.random_obstacles(self.objects_list, self.textures_list,
-                                           15, self.reset_area, self.start_area, layout_texture)
+                                           10, self.reset_area, self.start_area, layout_texture)

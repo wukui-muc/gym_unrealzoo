@@ -21,16 +21,16 @@ class UnrealCv(object):
         # build a client to connect to the env
         self.client = unrealcv.Client((ip, port))
         self.client.connect()
-        if 'linux' in sys.platform and unrealcv.__version__ >= '1.0.0': # new socket for linux
-            unix_socket_path = os.path.join('/tmp/unrealcv_{port}.socket'.format(port=port)) # clean the old socket
-            os.remove(unix_socket_path) if os.path.exists(unix_socket_path) else None
-            self.client.disconnect() # disconnect the client for creating a new socket in linux
-            time.sleep(2)
-            if unix_socket_path is not None and os.path.exists(unix_socket_path):
-                self.client = unrealcv.Client(unix_socket_path, 'unix')
-            else:
-                self.client = unrealcv.Client((ip, port)) # reconnect to the tcp socket
-            self.client.connect()
+        # if 'linux' in sys.platform and unrealcv.__version__ >= '1.0.0': # new socket for linux
+        #     unix_socket_path = os.path.join('/tmp/unrealcv_{port}.socket'.format(port=port)) # clean the old socket
+        #     os.remove(unix_socket_path) if os.path.exists(unix_socket_path) else None
+        #     self.client.disconnect() # disconnect the client for creating a new socket in linux
+        #     time.sleep(2)
+        #     if unix_socket_path is not None and os.path.exists(unix_socket_path):
+        #         self.client = unrealcv.Client(unix_socket_path, 'unix')
+        #     else:
+        #         self.client = unrealcv.Client((ip, port)) # reconnect to the tcp socket
+        #     self.client.connect()
         self.cam = dict()
         self.color_dict = dict()
         for i in range(20):
@@ -50,9 +50,9 @@ class UnrealCv(object):
         [w, h] = resolution
         self.client.request(f'vrun setres {w}x{h}w', -1)  # set resolution of the display window
         self.client.request('DisableAllScreenMessages', -1)  # disable all screen messages
-        self.client.request('vrun sg.ShadowQuality 0', 3)  # set shadow quality to low
-        self.client.request('vrun sg.TextureQuality 0', 3)  # set texture quality to low
-        self.client.request('vrun sg.EffectsQuality 0', 3)  # set effects quality to low
+        self.client.request('vrun sg.ShadowQuality 0', -1)  # set shadow quality to low
+        self.client.request('vrun sg.TextureQuality 0', -1)  # set texture quality to low
+        self.client.request('vrun sg.EffectsQuality 0', -1)  # set effects quality to low
         # self.client.request('vrun r.ScreenPercentage 10')
         time.sleep(0.1)
         self.get_rotation(cam_id, 'hard')
